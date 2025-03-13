@@ -1,0 +1,33 @@
+name: Deploy React App to EC2
+
+   on:
+     push:
+       branches:
+         - master  # Trigger deployment on push to the master branch
+
+   jobs:
+     deploy:
+       runs-on: ubuntu-latest
+
+       steps:
+       - name: Checkout Code
+         uses: actions/checkout@v2
+
+       - name: Set up SSH
+         uses: webfactory/ssh-agent@v0.5.3
+         with:
+           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+       - name: Install Dependencies
+         run: |
+           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} << 'EOF'
+             cd react || exit
+             git pull origin master || exit
+             npm install || exit
+             npm run build || exit
+             pm2 restart react-app || pm2 start serve --name "react-app" build -p 3000
+           EOF
+
+       - name: Commit Changes (if necessary)
+         run: git add . && git commit -m "Auto deployment" && git push
+   
